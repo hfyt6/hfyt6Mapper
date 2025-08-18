@@ -8,45 +8,87 @@ using System.Threading.Tasks;
 
 namespace hfyt6Mapper
 {
-    public class MapperProfile
+    public interface IMapperProfile
     {
-        public Type SourceType { get; private set; }
-        public Type TargetType { get; private set; }
-        public List<(GetSourceValue, PropertyInfo)> PropertyMappings { get; set; } = new List<(GetSourceValue, PropertyInfo)> ();
+        object Map(object sourceObj);
 
-        public delegate object GetSourceValue(object s);
+        public Type InType { get; set; }
+        public Type OutType { get; set; }
+    }
 
-        public void CreateMap<TSource, TTarget>()
+    public class MapperProfile<TIn, TOut> : IMapperProfile
+    {
+        private List<MemberBinding> _memberBindings = new List<MemberBinding>();
+
+        private ParameterExpression _tInParameterExpression;
+
+        private Func<TIn, TOut> _converterFunc;
+
+        public Type InType { get; set; }
+
+        public Type OutType { get; set; }
+
+        public MapperProfile()
         {
-            SourceType = typeof(TSource);
-            TargetType = typeof(TTarget);
+            InType = typeof(TIn);
+            OutType = typeof(TOut);
         }
 
-        public void ForMember<TSource, TTarget>(
-            Func<TSource, object> getSourceFunc,
-            Expression<Func<TTarget, object>> targetPropertyExp)
+        public void SetMapper<TMember>(Expression<Func<TIn, TMember>> getValueFunc,
+            Expression<Func<TOut, TMember>> setValueExp)
         {
-            string propertyName;
-            if (targetPropertyExp.Body is UnaryExpression ue)
-            {
-                propertyName = ((MemberExpression)ue.Operand).Member.Name;
-            }
-            else
-            {
-                propertyName = ((MemberExpression)targetPropertyExp.Body).Member.Name;
-            }
-            var propertyInfo = typeof(TTarget).GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
-            
-            if (propertyInfo == null)
-            {
-                throw new InvalidOperationException($"Try to map a property that cannot be obtained {propertyName}");
-            }
+            if(_tInParameterExpression == null)
+                _tInParameterExpression = Expression.Parameter(typeof(TIn), "inObj");
 
-            PropertyMappings.Add( 
-                (
-                    obj => getSourceFunc.Invoke((TSource)obj) , 
-                    propertyInfo
-                ));
+            if (setValueExp.Body is MemberExpression mexp)
+            {
+                var p = typeof(TOut).GetProperty(mexp.Member.Name, BindingFlags.Instance | BindingFlags.Public);
+                if (p != null && p.CanRead)
+                {
+                    InvocationExpression invokeFunc = Expression.Invoke(getValueFunc, _tInParameterExpression);
+                    _memberBindings.Add(Expression.Bind(p, invokeFunc));
+                    return;
+                }
+
+                var f = typeof(TOut).GetField(mexp.Member.Name, BindingFlags.Instance | BindingFlags.Public);
+
+                if (f != null)
+                {
+                    InvocationExpression invokeFunc = Expression.Invoke(getValueFunc, _tInParameterExpression);
+                    _memberBindings.Add(Expression.Bind(f, invokeFunc));
+                    return;
+                }
+            }
+            else if(setValueExp.Body is UnaryExpression uexp && uexp.Operand is MemberExpression mexp2)
+            {
+                InvocationExpression invokeFunc = Expression.Invoke(getValueFunc, _tInParameterExpression);
+                _memberBindings.Add(Expression.Bind(mexp2.Member, invokeFunc));
+                return;
+            }
+            else 
+                throw new InvalidOperationException("Unsupported setting member " + setValueExp.ToString());
+
+        }
+
+        public Func<TIn, TOut> Complie()
+        {
+            MemberInitExpression memberInitExpression = Expression.MemberInit(Expression.New(typeof(TOut)), _memberBindings);
+            Expression<Func<TIn, TOut>> lambda = Expression.Lambda<Func<TIn, TOut>>(memberInitExpression,
+                new ParameterExpression[] { _tInParameterExpression });
+            _converterFunc = lambda.Compile();
+            return _converterFunc;
+        }
+
+        public TOut Map(TIn sourceObj)
+        {
+            return _converterFunc(sourceObj);
+        }
+
+        public object Map(object sourceObj)
+        {
+            if (!(sourceObj is TIn obj))
+                throw new InvalidOperationException($"Illegal operation requires type {typeof(TIn)} but the object is type {sourceObj.GetType()}");
+            return _converterFunc(obj);
         }
     }
 }

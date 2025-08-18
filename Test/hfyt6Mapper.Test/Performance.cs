@@ -14,15 +14,15 @@ namespace hfyt6Mapper.Test
         {
             Mapper.Configure<SimpleObjA, SimpleObjB>(p =>
             {
-                p.ForMember<SimpleObjA, SimpleObjB>(a => a.Name, b => b.Name);
-                p.ForMember<SimpleObjA, SimpleObjB>(a => a.Id, b => b.Id);
-                p.ForMember<SimpleObjA, SimpleObjB>(a => a.Photo, b => b.Photo);
-                p.ForMember<SimpleObjA, SimpleObjB>(a => a.IsStudent, b => b.IsStudent);
-                p.ForMember<SimpleObjA, SimpleObjB>(a => a.BrithDate, b => b.BrithDate);
-                p.ForMember<SimpleObjA, SimpleObjB>(a => a.Description, b => b.Description);
-                p.ForMember<SimpleObjA, SimpleObjB>(a => a.Guid, b => b.Guid);
-                p.ForMember<SimpleObjA, SimpleObjB>(a => a.Money, b => b.Money);
-                p.ForMember<SimpleObjA, SimpleObjB>(a => a.Weight, b => b.Weight);
+                p.SetMapper(a => a.Name, b => b.Name);
+                p.SetMapper(a => a.Id, b => b.Id);
+                p.SetMapper(a => a.Photo, b => b.Photo);
+                p.SetMapper(a => a.IsStudent, b => b.IsStudent);
+                p.SetMapper(a => a.BrithDate, b => b.BrithDate);
+                p.SetMapper(a => a.Description, b => b.Description);
+                p.SetMapper(a => a.Guid, b => b.Guid);
+                p.SetMapper(a => a.Money, b => b.Money);
+                p.SetMapper(a => a.Weight, b => b.Weight);
             });
 
             SimpleObjA a = new SimpleObjA
