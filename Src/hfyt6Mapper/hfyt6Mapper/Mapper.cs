@@ -16,10 +16,10 @@ namespace hfyt6Mapper
         
 
 
-        public static void Configure<TSource, TTarget>(Action<MapperProfile<TSource, TTarget>> configure)
+        public static void Configure<TSource, TTarget>(Action<MapperProfile<TSource, TTarget>> configure = null)
         {
             var profile = new MapperProfile<TSource, TTarget>();
-            configure(profile);
+            configure?.Invoke(profile);
             profile.Complie();
             int key = GetKey<TSource, TTarget>();
 

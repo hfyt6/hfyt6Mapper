@@ -11,27 +11,47 @@ namespace hfyt6Mapper
     public interface IMapperProfile
     {
         object Map(object sourceObj);
-
-        public Type InType { get; set; }
-        public Type OutType { get; set; }
     }
 
     public class MapperProfile<TIn, TOut> : IMapperProfile
     {
-        private List<MemberBinding> _memberBindings = new List<MemberBinding>();
+        private List<MemberBinding> _memberBindings = new List<MemberBinding> ();
+        private List<MemberBinding> _autoMapMemberBindings = new List<MemberBinding> ();
 
         private ParameterExpression _tInParameterExpression;
 
         private Func<TIn, TOut> _converterFunc;
 
-        public Type InType { get; set; }
+        public Type InType { get; private set; }
 
-        public Type OutType { get; set; }
+        public Type OutType { get; private set; }
 
         public MapperProfile()
         {
             InType = typeof(TIn);
             OutType = typeof(TOut);
+
+            AutoMapper();
+        }
+
+        private void AutoMapper()
+        {
+            PropertyInfo[] inTypeProps = InType.GetProperties(BindingFlags.Instance | BindingFlags.Public);
+            PropertyInfo[] outTypeProps = OutType.GetProperties(BindingFlags.Instance | BindingFlags.Public);
+
+            if (_tInParameterExpression == null)
+                _tInParameterExpression = Expression.Parameter(typeof(TIn), "inObj");
+
+            Dictionary<string, PropertyInfo> inPropSet = new Dictionary<string, PropertyInfo>(inTypeProps
+                .Select(p => KeyValuePair.Create(p.Name, p)));
+
+            foreach (PropertyInfo prop in outTypeProps)
+            {
+                if(inPropSet.ContainsKey(prop.Name) && inPropSet[prop.Name].PropertyType == prop.PropertyType)
+                {
+                    _autoMapMemberBindings.Add(Expression.Bind(prop, Expression.MakeMemberAccess(_tInParameterExpression, inPropSet[prop.Name])));
+                }
+            }
         }
 
         public void SetMapper<TMember>(Expression<Func<TIn, TMember>> getValueFunc,
@@ -45,8 +65,7 @@ namespace hfyt6Mapper
                 var p = typeof(TOut).GetProperty(mexp.Member.Name, BindingFlags.Instance | BindingFlags.Public);
                 if (p != null && p.CanRead)
                 {
-                    InvocationExpression invokeFunc = Expression.Invoke(getValueFunc, _tInParameterExpression);
-                    _memberBindings.Add(Expression.Bind(p, invokeFunc));
+                    AddMemberBinding(p, getValueFunc);
                     return;
                 }
 
@@ -54,15 +73,13 @@ namespace hfyt6Mapper
 
                 if (f != null)
                 {
-                    InvocationExpression invokeFunc = Expression.Invoke(getValueFunc, _tInParameterExpression);
-                    _memberBindings.Add(Expression.Bind(f, invokeFunc));
+                    AddMemberBinding(f, getValueFunc);
                     return;
                 }
             }
             else if(setValueExp.Body is UnaryExpression uexp && uexp.Operand is MemberExpression mexp2)
             {
-                InvocationExpression invokeFunc = Expression.Invoke(getValueFunc, _tInParameterExpression);
-                _memberBindings.Add(Expression.Bind(mexp2.Member, invokeFunc));
+                AddMemberBinding(mexp2.Member, getValueFunc);
                 return;
             }
             else 
@@ -70,8 +87,22 @@ namespace hfyt6Mapper
 
         }
 
+        private void AddMemberBinding(MemberInfo member, Expression getValueFunc)
+        {
+            InvocationExpression invokeFunc = Expression.Invoke(getValueFunc, _tInParameterExpression);
+            MemberBinding bind = Expression.Bind(member, invokeFunc);
+            _memberBindings.Add(bind);
+        }
+
         public Func<TIn, TOut> Complie()
         {
+            List<MemberBinding> addBindings = new List<MemberBinding>();
+            Dictionary<string, bool> hashSet = new Dictionary<string, bool>(_memberBindings.Select(mb => KeyValuePair.Create(mb.Member.Name, true)));
+            foreach(MemberBinding mb in _autoMapMemberBindings) 
+                if(!hashSet.ContainsKey(mb.Member.Name))
+                    addBindings.Add(mb);
+            _memberBindings.AddRange(addBindings);
+
             MemberInitExpression memberInitExpression = Expression.MemberInit(Expression.New(typeof(TOut)), _memberBindings);
             Expression<Func<TIn, TOut>> lambda = Expression.Lambda<Func<TIn, TOut>>(memberInitExpression,
                 new ParameterExpression[] { _tInParameterExpression });
