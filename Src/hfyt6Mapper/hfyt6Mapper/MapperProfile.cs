@@ -30,8 +30,6 @@ namespace hfyt6Mapper
         {
             InType = typeof(TIn);
             OutType = typeof(TOut);
-
-            AutoMapper();
         }
 
         private void AutoMapper()
@@ -47,10 +45,26 @@ namespace hfyt6Mapper
 
             foreach (PropertyInfo prop in outTypeProps)
             {
-                if(inPropSet.ContainsKey(prop.Name) && inPropSet[prop.Name].PropertyType == prop.PropertyType)
+                if (!inPropSet.ContainsKey(prop.Name) || inPropSet[prop.Name].PropertyType != prop.PropertyType || !prop.CanWrite)
+                    continue;
+
+                if (prop.PropertyType.IsPrimitive || prop.PropertyType == typeof(string)) // simple type
                 {
                     _autoMapMemberBindings.Add(Expression.Bind(prop, Expression.MakeMemberAccess(_tInParameterExpression, inPropSet[prop.Name])));
+                    continue;
                 }
+
+                if (prop.PropertyType.GetInterface("ICloneable") == typeof(ICloneable))
+                {
+                    Expression<Func<object, object>> cloneExp = 
+                        (obj) => (obj != null) ? (obj as ICloneable).Clone() : null;
+                    MemberExpression memberExp = Expression.MakeMemberAccess(_tInParameterExpression, inPropSet[prop.Name]);
+                    UnaryExpression cvtExp = Expression.Convert(memberExp, typeof(object));  // Value type need
+                    InvocationExpression invokeExp = Expression.Invoke(cloneExp, cvtExp);
+                    UnaryExpression cvtExp2 = Expression.Convert(invokeExp, prop.PropertyType);  // Value type need
+                    _autoMapMemberBindings.Add(Expression.Bind(prop, cvtExp2));
+                }
+
             }
         }
 
@@ -96,6 +110,8 @@ namespace hfyt6Mapper
 
         public Func<TIn, TOut> Complie()
         {
+            AutoMapper();
+
             List<MemberBinding> addBindings = new List<MemberBinding>();
             Dictionary<string, bool> hashSet = new Dictionary<string, bool>(_memberBindings.Select(mb => KeyValuePair.Create(mb.Member.Name, true)));
             foreach(MemberBinding mb in _autoMapMemberBindings) 
