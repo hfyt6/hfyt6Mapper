@@ -2,6 +2,6 @@
 
 using hfyt6Mapper.Test;
 
-CloneParentObjectB.Test();
+CircularReferenceObjectB.Test();
 
 Console.ReadKey();

@@ -14,8 +14,6 @@ namespace hfyt6Mapper
         private static int GetKey(Type t1, Type t2) => (int) ((long)t1.GetHashCode() << 4 ^ t2.GetHashCode());
         private static int GetKey<TSource, TTarget>() => (int) ((long)typeof(TSource).GetHashCode() << 4 ^ typeof(TTarget).GetHashCode());
         
-
-
         public static void Configure<TSource, TTarget>(Action<MapperProfile<TSource, TTarget>> configure = null)
         {
             var profile = new MapperProfile<TSource, TTarget>();
@@ -39,8 +37,30 @@ namespace hfyt6Mapper
                 throw new InvalidOperationException($"No mapping defined for {typeof(TSource)} to {typeof(TTarget)} !");
             }
 
+            if (_mapperCache[key].IsUsePreserveReferences)
+            {
+                return (TTarget)_mapperCache[key].PreserveReferencesMap(source, new Dictionary<int, object>());
+            }
+
             return (TTarget)_mapperCache[key].Map(source);
             //return (TTarget)MapObject(source, _mapperCache[key]);
+        }
+
+        public static object Map(object source)
+        {
+            return null;
+        }
+
+        public static object CloneMap(object source, Dictionary<int, object> hashSet)
+        {
+            if(source == null)
+                return null;
+
+            int key = GetKey(source.GetType(), source.GetType());
+            if (!_mapperCache.ContainsKey(key))
+                return null;
+
+            return _mapperCache[key].PreserveReferencesMap(source, hashSet);
         }
 
         private static object MapObject(object source, IMapperProfile profile) 
