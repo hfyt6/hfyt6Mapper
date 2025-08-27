@@ -67,10 +67,8 @@ namespace hfyt6Mapper
                     //InvocationExpression invokeFunc = Expression.Invoke(exp, _tInParameterExpression);
 
                     var cvtExp = Expression.Convert(exp, prop.PropertyType);
-                    if (_isPreserveReferences)
-                        _autoMapMemberExp.Add((prop, cvtExp));
-                    else
-                        _autoMapMemberBindings.Add(Expression.Bind(prop, cvtExp));
+                    _autoMapMemberExp.Add((prop, cvtExp));
+                    _autoMapMemberBindings.Add(Expression.Bind(prop, cvtExp));
                     continue;
                 }
 
@@ -84,26 +82,27 @@ namespace hfyt6Mapper
                     InvocationExpression invokeExp = Expression.Invoke(cloneExp, cvtExp);
                     UnaryExpression cvtExp2 = Expression.Convert(invokeExp, prop.PropertyType);  // Value type need
 
-                    if (_isPreserveReferences)
-                        _autoMapMemberExp.Add((prop, cvtExp2));
-                    else
-                        _autoMapMemberBindings.Add(Expression.Bind(prop, cvtExp2));
+                    _autoMapMemberExp.Add((prop, cvtExp2));
+                    _autoMapMemberBindings.Add(Expression.Bind(prop, cvtExp2));
 
                     continue;
                 }
 
                 // preserve references
-                if (_isPreserveReferences)  
+                if (true)  
                 {
                     Expression<Func<object, Dictionary<int, object>, object>> getPreserveReferencesExp =
                         (tPrObj, tPrHashSet) => (tPrObj != null) ? Mapper.CloneMap(tPrObj, tPrHashSet) : null;
-                    InvocationExpression invokeExp = Expression.Invoke(getPreserveReferencesExp, new ParameterExpression[]
+
+                    Expression memberExp = Expression.MakeMemberAccess(_tInParameterExpression, inPropSet[prop.Name]);
+                    InvocationExpression invokeExp = Expression.Invoke(getPreserveReferencesExp, new Expression[]
                     {
-                        _tPRObjParameterExpression,
+                        memberExp,
                         _tPRHashSetParameterExpression,
                     });
+                    UnaryExpression cvtExp = Expression.Convert(invokeExp, prop.PropertyType);
 
-                    _autoMapMemberExp.Add((prop, invokeExp));
+                    _autoMapMemberExp.Add((prop, cvtExp));
                     //_autoMapMemberBindings.Add(Expression.Bind(prop, invokeExp));
                     continue;
                 }

@@ -24,7 +24,7 @@ namespace hfyt6Mapper.Test
 
         public string Name { get; set; }
 
-        public CircularReferenceObjectA A { get; set; }
+        public CircularReferenceObjectB B { get; set; }
 
         public static void Test()
         {
@@ -37,7 +37,7 @@ namespace hfyt6Mapper.Test
 
             b.Price = 1.23456;
             b.Name = "testB";
-            b.A = a;
+            b.B = b;
 
             Mapper.Configure<CircularReferenceObjectA, CircularReferenceObjectA>();
             Mapper.Configure<CircularReferenceObjectB, CircularReferenceObjectB>();
