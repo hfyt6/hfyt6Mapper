@@ -32,7 +32,7 @@ namespace hfyt6Mapper
 
             int key = GetKey<TSource, TTarget>();
 
-            if (!_mapperCache.ContainsKey(key))
+            if (!_mapperCache.ContainsKey(key) || !_mapperCache[key].Compiled)
             {
                 throw new InvalidOperationException($"No mapping defined for {typeof(TSource)} to {typeof(TTarget)} !");
             }
@@ -43,12 +43,6 @@ namespace hfyt6Mapper
             }
 
             return (TTarget)_mapperCache[key].Map(source);
-            //return (TTarget)MapObject(source, _mapperCache[key]);
-        }
-
-        public static object Map(object source)
-        {
-            return null;
         }
 
         public static object CloneMap(object source, Dictionary<int, object> hashSet)
@@ -57,46 +51,10 @@ namespace hfyt6Mapper
                 return null;
 
             int key = GetKey(source.GetType(), source.GetType());
-            if (!_mapperCache.ContainsKey(key))
+            if (!_mapperCache.ContainsKey(key) || !_mapperCache[key].Compiled)
                 return null;
 
             return _mapperCache[key].PreserveReferencesMap(source, hashSet);
-        }
-
-        private static object MapObject(object source, IMapperProfile profile) 
-        {
-            //var targetObj = Activator.CreateInstance(profile.InType);
-
-            //foreach(var (sourceValueGetter, targetProperty) in profile.PropertyMappings)
-            //{
-            //    if(targetProperty.CanWrite)
-            //    {
-            //        object val = sourceValueGetter(source);
-            //        targetProperty.SetValue(targetObj, ConvertValue(val, targetProperty.PropertyType));
-            //    }
-            //}
-
-            //return targetObj;
-            return null;
-        }
-
-        private static object ConvertValue(object value, Type targetType)
-        {
-            Type sourceType = value.GetType();
-            if (value == null || targetType == sourceType)
-                return value;
-
-            if ((targetType == typeof(string) && sourceType.IsPrimitive) ||
-                (sourceType == typeof(string) && targetType.IsPrimitive) ||
-                (targetType.IsPrimitive && sourceType.IsPrimitive))
-                return Convert.ChangeType(value, targetType);
-
-
-            int key = GetKey(sourceType, targetType);
-            if(_mapperCache.ContainsKey(key))
-                return MapObject(value, _mapperCache[key]);
-
-            throw new InvalidOperationException($"Cannot convert {value.GetType()} to {targetType}");
         }
     }
 }
